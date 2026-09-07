@@ -1,5 +1,23 @@
-﻿// Media Grabber - Content Script / DOM Scanner
+﻿// Media Grabber - Content Script (광고/배너 차단 및 한글 파일명 지원)
 (function () {
+  // 제외할 광고 및 트래커 도메인/키워드 목록
+  const AD_PATTERNS = [
+    'doubleclick', 'googlesyndication', 'adnxs', 'adsystem', 'criteo', 
+    'taboola', 'outbrain', 'analytics', 'pixel', 'facebook.com/tr/', 
+    'adclick', 'banner', 'sponsor', 'tracker'
+  ];
+
+  function isAdUrl(url) {
+    const lower = url.toLowerCase();
+    return AD_PATTERNS.some(pattern => lower.includes(pattern));
+  }
+
+  function isAdElement(el) {
+    // 광고 태그 및 클래스 검사
+    const adClosest = el.closest('ins.adsbygoogle, .ad, .ads, [class*="banner"], [id*="banner"], [class*="sponsor"], iframe');
+    return !!adClosest;
+  }
+
   function getAbsoluteUrl(url) {
     try {
       return new URL(url, document.baseURI).href;
@@ -19,20 +37,30 @@
     return '';
   }
 
-  function extractMediaFromPage() {
+  function extractMedia() {
     const mediaMap = new Map();
 
-    // 1. Scan <img> elements
+    // 1. <img> 요소 스캔
     document.querySelectorAll('img').forEach((img) => {
+      if (isAdElement(img)) return;
+
       const src = img.currentSrc || img.src || img.getAttribute('data-src') || img.getAttribute('data-original');
       if (!src || src.startsWith('data:image/svg') || src.startsWith('data:image/gif;base64,R0lG')) return;
 
       const fullUrl = getAbsoluteUrl(src);
+      if (isAdUrl(fullUrl)) return;
+
       const w = img.naturalWidth || img.width || 0;
       const h = img.naturalHeight || img.height || 0;
 
-      // Filter out tiny icons or tracking pixels
-      if ((w > 0 && w < 40) || (h > 0 && h < 40)) return;
+      // 50px 미만 아이콘 제외
+      if ((w > 0 && w < 50) || (h > 0 && h < 50)) return;
+
+      // 배너 비율 필터 (가로/세로 비율이 4:1 이상이거나 1:4 이상인 띠배너 제외)
+      if (w > 0 && h > 0) {
+        const ratio = w / h;
+        if (ratio > 4 || ratio < 0.25) return;
+      }
 
       if (!mediaMap.has(fullUrl)) {
         mediaMap.set(fullUrl, {
@@ -41,58 +69,12 @@
           width: w,
           height: h,
           format: getFileExtension(fullUrl) || 'jpg',
-          title: img.alt || document.title || 'Image'
+          title: decodeURIComponent(img.alt || document.title || 'Image')
         });
       }
     });
 
-    // 2. Scan <picture> sources
-    document.querySelectorAll('picture source').forEach((source) => {
-      const srcset = source.srcset;
-      if (srcset) {
-        const candidates = srcset.split(',').map((s) => s.trim().split(/\s+/)[0]);
-        const lastCandidate = candidates[candidates.length - 1];
-        if (lastCandidate) {
-          const fullUrl = getAbsoluteUrl(lastCandidate);
-          if (!mediaMap.has(fullUrl)) {
-            mediaMap.set(fullUrl, {
-              url: fullUrl,
-              type: 'image',
-              width: 0,
-              height: 0,
-              format: getFileExtension(fullUrl) || 'webp',
-              title: document.title || 'Image'
-            });
-          }
-        }
-      }
-    });
-
-    // 3. Scan CSS background images
-    document.querySelectorAll('*').forEach((el) => {
-      const bg = window.getComputedStyle(el).backgroundImage;
-      if (bg && bg !== 'none' && bg.startsWith('url(')) {
-        const match = bg.match(/url\(["']?([^"']+)["']?\)/);
-        if (match && match[1]) {
-          const fullUrl = getAbsoluteUrl(match[1]);
-          if (!mediaMap.has(fullUrl) && !fullUrl.startsWith('data:')) {
-            const rect = el.getBoundingClientRect();
-            if (rect.width >= 50 && rect.height >= 50) {
-              mediaMap.set(fullUrl, {
-                url: fullUrl,
-                type: 'image',
-                width: Math.round(rect.width),
-                height: Math.round(rect.height),
-                format: getFileExtension(fullUrl) || 'jpg',
-                title: 'Background Image'
-              });
-            }
-          }
-        }
-      }
-    });
-
-    // 4. Scan <video> elements
+    // 2. <video> 요소 스캔
     document.querySelectorAll('video').forEach((video) => {
       let videoUrl = video.currentSrc || video.src;
       if (!videoUrl) {
@@ -100,8 +82,10 @@
         if (source) videoUrl = source.src;
       }
 
-      if (videoUrl) {
+      if (videoUrl && !videoUrl.startsWith('blob:')) {
         const fullUrl = getAbsoluteUrl(videoUrl);
+        if (isAdUrl(fullUrl)) return;
+
         const w = video.videoWidth || video.clientWidth || 0;
         const h = video.videoHeight || video.clientHeight || 0;
 
@@ -113,38 +97,7 @@
             width: w,
             height: h,
             format: getFileExtension(fullUrl) || 'mp4',
-            title: video.title || document.title || 'Video'
-          });
-        }
-      }
-    });
-
-    // 5. Scan <a> links pointing directly to video/image files
-    document.querySelectorAll('a[href]').forEach((a) => {
-      const href = a.href;
-      const ext = getFileExtension(href);
-      if (['mp4', 'webm', 'mov', 'm4v', 'mkv'].includes(ext)) {
-        const fullUrl = getAbsoluteUrl(href);
-        if (!mediaMap.has(fullUrl)) {
-          mediaMap.set(fullUrl, {
-            url: fullUrl,
-            type: 'video',
-            width: 0,
-            height: 0,
-            format: ext,
-            title: a.innerText.trim() || 'Linked Video'
-          });
-        }
-      } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
-        const fullUrl = getAbsoluteUrl(href);
-        if (!mediaMap.has(fullUrl)) {
-          mediaMap.set(fullUrl, {
-            url: fullUrl,
-            type: 'image',
-            width: 0,
-            height: 0,
-            format: ext,
-            title: a.innerText.trim() || 'Linked Image'
+            title: decodeURIComponent(video.title || document.title || 'Video')
           });
         }
       }
@@ -153,6 +106,5 @@
     return Array.from(mediaMap.values());
   }
 
-  // Return extracted media items immediately
-  return extractMediaFromPage();
+  return extractMedia();
 })();

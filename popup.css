@@ -19,7 +19,7 @@
 
 body {
   width: 480px;
-  height: 560px;
+  height: 580px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
@@ -38,7 +38,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--border);
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(8px);
@@ -51,21 +51,20 @@ body {
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
 }
 
 .title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: -0.3px;
 }
 
 .subtitle {
   font-size: 11px;
   color: var(--text-muted);
-  max-width: 280px;
+  max-width: 250px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -76,8 +75,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text-muted);
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -104,9 +103,9 @@ body {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-radius: 6px;
   cursor: pointer;
   display: flex;
@@ -127,10 +126,46 @@ body {
 }
 
 .badge {
-  font-size: 10px;
-  padding: 2px 6px;
+  font-size: 9px;
+  padding: 2px 5px;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.25);
+}
+
+/* Settings Bar */
+.settings-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  background: #172033;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-row label {
+  color: var(--text-muted);
+}
+
+.settings-row input[type="text"] {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-main);
+  padding: 3px 6px;
+  font-size: 11px;
+  width: 100px;
+  outline: none;
+}
+
+.settings-row input[type="text"]:focus {
+  border-color: var(--primary);
 }
 
 /* Toolbar */
@@ -147,7 +182,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   color: var(--text-muted);
 }
@@ -175,9 +210,9 @@ body {
 
 .btn {
   border: none;
-  padding: 6px 12px;
+  padding: 5px 12px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -201,7 +236,7 @@ body {
 .content-area {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 10px;
 }
 
 .status-box {
@@ -213,12 +248,12 @@ body {
   color: var(--text-muted);
   gap: 12px;
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .spinner {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: 3px solid rgba(255, 255, 255, 0.1);
   border-top-color: var(--primary);
   border-radius: 50%;
@@ -232,13 +267,13 @@ body {
 .media-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .media-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
   position: relative;
   display: flex;
@@ -277,11 +312,11 @@ body {
   position: absolute;
   top: 6px;
   left: 6px;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
   padding: 2px 5px;
-  border-radius: 4px;
+  border-radius: 3px;
   color: #fff;
 }
 
@@ -305,10 +340,10 @@ body {
 }
 
 .media-info {
-  padding: 8px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .media-meta {
@@ -322,7 +357,7 @@ body {
 .media-actions {
   display: flex;
   gap: 4px;
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .btn-card {
@@ -330,9 +365,9 @@ body {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border);
   color: var(--text-main);
-  padding: 4px 6px;
+  padding: 3px 6px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
   transition: all 0.2s;
   text-align: center;
@@ -350,7 +385,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 6px 16px;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   border-top: 1px solid var(--border);
   background: var(--bg-main);

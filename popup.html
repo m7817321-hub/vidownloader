@@ -39,6 +39,20 @@
       </button>
     </nav>
 
+    <!-- Settings Bar (다운로드 폴더 및 저장 옵션) -->
+    <div class="settings-bar">
+      <div class="settings-row">
+        <label for="folderInput">저장 폴더:</label>
+        <input type="text" id="folderInput" value="media_grabber" placeholder="폴더명" />
+      </div>
+      <div class="settings-row">
+        <label class="checkbox-label">
+          <input type="checkbox" id="saveAsCheckbox" />
+          <span>위치 직접 지정</span>
+        </label>
+      </div>
+    </div>
+
     <!-- Toolbar -->
     <div class="toolbar">
       <label class="checkbox-label">
@@ -49,9 +63,9 @@
       <div class="toolbar-actions">
         <select id="sizeFilter" class="select-filter">
           <option value="0">모든 크기</option>
-          <option value="200">> 200px (중간 이상)</option>
+          <option value="200">> 200px</option>
           <option value="500">> 500px (고화질)</option>
-          <option value="1000">> 1000px (초고화질)</option>
+          <option value="1000">> 1000px</option>
         </select>
         <button id="downloadSelectedBtn" class="btn btn-primary" disabled>
           선택 다운로드 (<span id="selectedCount">0</span>)
@@ -80,7 +94,7 @@
     <!-- Footer -->
     <footer class="footer">
       <span id="statusInfo">준비 완료</span>
-      <span class="version">v1.0.0</span>
+      <span class="version">v1.1.0</span>
     </footer>
   </div>
 

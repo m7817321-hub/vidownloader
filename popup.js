@@ -1,4 +1,4 @@
-﻿// Media Grabber - Popup Script
+﻿// Media Grabber - Popup Script v1.1.0
 document.addEventListener('DOMContentLoaded', () => {
   let allMedia = [];
   let currentTab = 'all';
@@ -20,8 +20,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const countAll = document.getElementById('countAll');
   const countImage = document.getElementById('countImage');
   const countVideo = document.getElementById('countVideo');
+  const folderInput = document.getElementById('folderInput');
+  const saveAsCheckbox = document.getElementById('saveAsCheckbox');
 
-  // Initialize
+  // 저장된 설정 불러오기
+  chrome.storage?.local?.get(['downloadFolder', 'saveAs'], (res) => {
+    if (res?.downloadFolder) folderInput.value = res.downloadFolder;
+    if (res?.saveAs !== undefined) saveAsCheckbox.checked = res.saveAs;
+  });
+
+  folderInput.addEventListener('input', () => {
+    chrome.storage?.local?.set({ downloadFolder: folderInput.value.trim() });
+  });
+
+  saveAsCheckbox.addEventListener('change', () => {
+    chrome.storage?.local?.set({ saveAs: saveAsCheckbox.checked });
+  });
+
   init();
 
   async function init() {
@@ -36,15 +51,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+      if (tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) {
         showError('브라우저 시스템 페이지에서는 동작하지 않습니다.');
+        return;
+      }
+
+      // 유튜브 제외 (웹스토어 정책 준수)
+      if (tab.url.includes('youtube.com') || tab.url.includes('youtu.be')) {
+        domainText.textContent = 'youtube.com';
+        showError('유튜브 정책상 YouTube 다운로드는 지원하지 않습니다.');
         return;
       }
 
       const urlObj = new URL(tab.url);
       domainText.textContent = urlObj.hostname;
 
-      // Inject & execute content script
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['content.js']
@@ -61,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       console.error(err);
-      showError('미디어를 스캔하는 중 오류가 발생했습니다.');
+      showError('스캔 중 오류가 발생했습니다.');
     }
   }
 
@@ -76,15 +97,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getFilteredMedia() {
     return allMedia.filter((item) => {
-      // Type filter
       if (currentTab !== 'all' && item.type !== currentTab) return false;
-
-      // Size filter (images only usually have width/height)
       if (minSize > 0) {
         const maxDim = Math.max(item.width || 0, item.height || 0);
         if (maxDim > 0 && maxDim < minSize) return false;
       }
-
       return true;
     });
   }
@@ -101,31 +118,30 @@ document.addEventListener('DOMContentLoaded', () => {
     showView('grid');
     mediaGrid.innerHTML = '';
 
-    filtered.forEach((item, index) => {
-      const card = createMediaCard(item, index);
+    filtered.forEach((item) => {
+      const card = createMediaCard(item);
       mediaGrid.appendChild(card);
     });
 
-    statusInfo.textContent = `총 ${filtered.length}개의 미디어 표시 중`;
+    statusInfo.textContent = `총 ${filtered.length}개 표시 중`;
     updateSelectionUI();
   }
 
-  function createMediaCard(item, index) {
+  function createMediaCard(item) {
     const card = document.createElement('div');
     card.className = 'media-card';
 
     const isSelected = selectedUrls.has(item.url);
     const isVideo = item.type === 'video';
 
-    // Preview element
     let previewHtml = '';
     if (isVideo) {
       if (item.poster) {
-        previewHtml = `<img src="${escapeHtml(item.poster)}" class="media-preview-img" alt="Video poster" loading="lazy" />`;
+        previewHtml = `<img src="${escapeHtml(item.poster)}" class="media-preview-img" alt="Poster" loading="lazy" />`;
       } else {
         previewHtml = `
           <div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#8b5cf6;">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
           </div>
         `;
       }
@@ -149,27 +165,20 @@ document.addEventListener('DOMContentLoaded', () => {
           <span>.${item.format}</span>
         </div>
         <div class="media-actions">
-          <button class="btn-card download-single-btn" data-url="${escapeHtml(item.url)}" data-type="${item.type}">다운로드</button>
+          <button class="btn-card dl-btn">다운로드</button>
           <a href="${escapeHtml(item.url)}" target="_blank" class="btn-card">보기</a>
         </div>
       </div>
     `;
 
-    // Checkbox event
-    const chk = card.querySelector('.card-checkbox');
-    chk.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        selectedUrls.add(item.url);
-      } else {
-        selectedUrls.delete(item.url);
-      }
+    card.querySelector('.card-checkbox').addEventListener('change', (e) => {
+      if (e.target.checked) selectedUrls.add(item.url);
+      else selectedUrls.delete(item.url);
       updateSelectionUI();
     });
 
-    // Single download button
-    const dlBtn = card.querySelector('.download-single-btn');
-    dlBtn.addEventListener('click', () => {
-      downloadFile(item.url);
+    card.querySelector('.dl-btn').addEventListener('click', () => {
+      downloadFile(item.url, item.title);
     });
 
     return card;
@@ -182,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedCountSpan.textContent = count;
     downloadSelectedBtn.disabled = count === 0;
 
-    // Check if all filtered are selected
     if (filtered.length > 0 && filtered.every((item) => selectedUrls.has(item.url))) {
       selectAllCheckbox.checked = true;
       selectAllCheckbox.indeterminate = false;
@@ -195,18 +203,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Select all handler
   selectAllCheckbox.addEventListener('change', (e) => {
     const filtered = getFilteredMedia();
-    if (e.target.checked) {
-      filtered.forEach((item) => selectedUrls.add(item.url));
-    } else {
-      filtered.forEach((item) => selectedUrls.delete(item.url));
-    }
+    if (e.target.checked) filtered.forEach((item) => selectedUrls.add(item.url));
+    else filtered.forEach((item) => selectedUrls.delete(item.url));
     render();
   });
 
-  // Tab switching
   navTabs.forEach((btn) => {
     btn.addEventListener('click', () => {
       navTabs.forEach((b) => b.classList.remove('active'));
@@ -216,86 +219,60 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Size filter
   sizeFilter.addEventListener('change', (e) => {
     minSize = parseInt(e.target.value, 10) || 0;
     render();
   });
 
-  // Refresh
-  refreshBtn.addEventListener('click', () => {
-    init();
-  });
+  refreshBtn.addEventListener('click', init);
 
-  // Batch download
   downloadSelectedBtn.addEventListener('click', async () => {
     const urls = Array.from(selectedUrls);
-    if (urls.length === 0) return;
+    if (!urls.length) return;
 
     downloadSelectedBtn.disabled = true;
     let success = 0;
 
     for (let i = 0; i < urls.length; i++) {
-      statusInfo.textContent = `다운로드 중... (${i + 1}/${urls.length})`;
+      statusInfo.textContent = `다운로드 (${i + 1}/${urls.length})`;
       try {
-        await downloadFile(urls[i]);
+        const item = allMedia.find((m) => m.url === urls[i]);
+        await downloadFile(urls[i], item ? item.title : '');
         success++;
       } catch (err) {
         console.error('Download failed:', urls[i], err);
       }
-      // Small delay to prevent browser download throttling
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 200));
     }
 
     statusInfo.textContent = `다운로드 완료: ${success}개`;
     setTimeout(() => {
       statusInfo.textContent = '준비 완료';
       downloadSelectedBtn.disabled = false;
-    }, 2000);
+    }, 1500);
   });
 
-  function downloadFile(url) {
-    return new Promise((resolve, reject) => {
+  function downloadFile(url, rawTitle) {
+    return new Promise((resolve) => {
       try {
-        const filename = generateFilename(url);
+        let decoded = decodeURIComponent(url);
+        let filename = (decoded.split('/').pop().split('?')[0] || rawTitle || 'media').replace(/[\\/:*?"<>|]/g, '_');
+        if (!filename.includes('.')) filename += '.jpg';
+
+        const folder = folderInput.value.trim() || 'media_grabber';
         chrome.downloads.download(
           {
             url: url,
-            filename: `media_grabber/${filename}`,
+            filename: `${folder}/${filename}`,
             conflictAction: 'uniquify',
-            saveAs: false
+            saveAs: saveAsCheckbox.checked
           },
-          (downloadId) => {
-            if (chrome.runtime.lastError) {
-              // Fallback: direct window anchor trigger
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = filename;
-              a.target = '_blank';
-              a.click();
-              resolve(null);
-            } else {
-              resolve(downloadId);
-            }
-          }
+          () => resolve()
         );
       } catch (err) {
-        reject(err);
+        resolve();
       }
     });
-  }
-
-  function generateFilename(url) {
-    try {
-      const u = new URL(url);
-      let name = u.pathname.split('/').pop() || 'download';
-      if (!name.includes('.')) {
-        name += '.jpg';
-      }
-      return name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    } catch (e) {
-      return `media_${Date.now()}.jpg`;
-    }
   }
 
   function showView(view) {
@@ -311,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function showError(msg) {
     showView('empty');
     emptyView.querySelector('p').textContent = msg;
-    statusInfo.textContent = '오류 발생';
+    statusInfo.textContent = '안내';
   }
 
   function escapeHtml(str) {
